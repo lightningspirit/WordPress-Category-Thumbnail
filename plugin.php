@@ -12,6 +12,15 @@ License: GPLv2
 */
 
 
+/*
+ * @package Category Thumbnail
+ * @author lightningspirit
+ * @copyright lightningspirit 2013
+ * This code is released under the GPL licence version 2 or later
+ * http://www.gnu.org/licenses/gpl.txt
+ */
+
+
 
 // Checks if it is accessed from Wordpress' index.php
 if ( ! function_exists( 'add_action' ) ) {
@@ -21,21 +30,35 @@ if ( ! function_exists( 'add_action' ) ) {
 
 
 
+
+if ( ! class_exists ( 'Category_Thumbnail' ) ) :
 /**
  * Category_Thumbnail
- * 
- * @since 0.1
- * 
+ *
+ * @package WordPress
+ * @subpackage Category Thumbnail
+ * @since 1.0
  */
 class Category_Thumbnail {
 	
-	
-	/**
-	 * 
-	 * @since 0.1
-	 * 
+	/** 
+	 * @since 1.0
 	 */
 	function init() {
+		// Load the text domain to support translations
+		load_plugin_textdomain( 'category-thumbnail', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+		
+		// Just to be parsed by gettext
+		$plugin_headers = array(
+			__( 'Category Thumbnail', 'category-thumbnail' ).
+			__( 'Add thumbnail feature to categories', 'category-thumbnail' )
+		);
+		
+		// if new upgrade
+		if ( version_compare( (int) get_option( 'category_thumbnail_plugin_version' ), '1.0', '<' ) )
+			add_action( 'admin_init', array( __CLASS__, 'do_upgrade' ) );
+		
+		
 		add_action( 'admin_head', array( __CLASS__, 'admin_head' ), 10, 2 );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'admin_enqueue_media_scripts' ), 10, 2 );
 		add_filter( 'manage_edit-category_columns', array( __CLASS__, 'manage_edit_columns' ) );
@@ -48,7 +71,17 @@ class Category_Thumbnail {
 		
 	}
 	
+	/** 
+	 * @since 1.0
+	 */
+	public static function do_upgrade() {
+		update_option( 'category_thumbnail_plugin_version', '1.0' );
+		
+	}
 	
+	/** 
+	 * @since 1.0
+	 */
 	function admin_head() {
 		if ( 'edit-category' == get_current_screen()->id ) : ?>
 			
@@ -62,17 +95,21 @@ class Category_Thumbnail {
 		
 	}
 	
-	
+	/** 
+	 * @since 1.0
+	 */
 	function admin_enqueue_media_scripts() {
 		if ( 'edit-category' == get_current_screen()->id ) {
 			wp_enqueue_media();
-			wp_enqueue_script( 'category-thumbnail', plugin_dir_url( __FILE__ ) . '/category-thumbnail.js', array( 'jquery' ), '2013030501', true );
+			wp_enqueue_script( 'category-thumbnail', plugin_dir_url( __FILE__ ) . '/assets/category-thumbnail.js', array( 'jquery' ), '2013042702', true );
 			
 		}
 		
 	}
 	
-	
+	/** 
+	 * @since 1.0
+	 */
 	function manage_edit_columns( $columns ) {
 		$keys = array_keys( $columns );
 		$values = array_values( $columns );
@@ -84,7 +121,9 @@ class Category_Thumbnail {
 		
 	}
 	
-	
+	/** 
+	 * @since 1.0
+	 */
 	function manage_category_custom_column( $null, $column, $cat_id ) {
 		
 		if ( 'thumbnail' == $column ) {
@@ -98,7 +137,7 @@ class Category_Thumbnail {
 	/**
 	 * Includes thumbnail category in add
 	 * 
-	 * @since 0.1
+	 * @since 1.0
 	 * 
 	 */
 	function category_add_thumbnail_field( $category ) {
@@ -122,7 +161,7 @@ class Category_Thumbnail {
 			</div>
 			<input name="image" id="image-id" type="hidden" value="" />
 			<p>
-				<?php printf( __( 'The thumbnail to this %s' ), $wp_taxonomies[ $category ]->labels->singular_name ); ?>
+				<?php printf( __( 'The thumbnail to this %s', 'category-thumbnail' ), $wp_taxonomies[ $category ]->labels->singular_name ); ?>
 			</p>
 		</div>
 		
@@ -134,7 +173,7 @@ class Category_Thumbnail {
 	/**
 	 * Includes thumbnail category in edit
 	 * 
-	 * @since 0.1
+	 * @since 1.0
 	 * 
 	 */
 	function category_edit_thumbnail_field( $tag, $taxonomy ) {
@@ -192,7 +231,7 @@ class Category_Thumbnail {
 			<input name="image" id="image-id" type="hidden" value="<?php echo $image; ?>" />
 			
 			<p class="description">
-				<?php printf( __( 'The thumbnail to this %s' ), $wp_taxonomies[ $taxonomy ]->labels->singular_name ); ?>
+				<?php printf( __( 'The thumbnail to this %s', 'category-thumbnail' ), $wp_taxonomies[ $taxonomy ]->labels->singular_name ); ?>
 			</p>
 			
 		</td>
@@ -204,17 +243,24 @@ class Category_Thumbnail {
 	/**
 	 * Save image ID
 	 * 
-	 * @since 0.1
+	 * @since 1.0
 	 * 
 	 */
 	function save_category( $category_id, $taxonomy_id ) {
-	
-		if ( isset( $_REQUEST['image'] ) ) {
-			// Load existing option
-			$image = get_option( 'category_thumbnail_image' );
+		
+		// Load existing option
+		$image = get_option( 'category_thumbnail_image' );
 			
+		if ( isset( $_REQUEST['image'] ) ) {
 			// Set active taxonomy in array
 			$image[ $category_id ] = (int) $_REQUEST['image'];
+			
+			// Update the option
+			update_option( 'category_thumbnail_image', $image );
+			
+		} elseif ( array_key_exists( $category_id, $image ) ) {
+			// Remove image from option
+			unset( $image[ $category_id ] );
 			
 			// Update the option
 			update_option( 'category_thumbnail_image', $image );
@@ -225,7 +271,13 @@ class Category_Thumbnail {
 	
 	}
 	
-	
+	/**
+	 * Get the thumbnail object for a given category object or ID
+	 * 
+	 * @param int|object $cat the category ID/object
+	 * @return object|bool Object or false
+	 * 
+	 */
 	function get_category_thumbnail_object( $cat = '' ) {
 		global $wp_taxonomies;
 		
@@ -258,10 +310,68 @@ class Category_Thumbnail {
 		
 	}
 	
-	function get_category_thumbnail( $cat = '' ) {
+	/**
+	 * Get the thumbnail HTML string for a given category object or ID
+	 * 
+	 * @param int|object $cat the category ID/object
+	 * @param array $args attributes to image like 'class', 'style', 'title', ...
+	 * @return string the HTML
+	 */
+	function get_category_thumbnail( $cat = '', $args = '' ) {
 		$image = get_category_thumbnail_object( $cat );
 		
-		return sprintf( '<img src="%1$s" width="%2$s" height="%3$s">', $image->url, $image->width, $image->height );
+		if ( function_exists( 'wp_parse_attrs' ) ) {
+			$attrs = wp_parse_attrs( $args, array(
+				'class' => 'attachment-tag-thumbnail wp-post-image',
+			) );
+			
+		} else {
+			$attrs = wp_parse_args( $args, array(
+				'class' => 'attachment-tag-thumbnail wp-post-image',
+			) );
+			foreach ( $attrs as $attr => $value )
+				$attrs[ $attr ] = "{$attr}=\"{$value}\"";
+			
+			$attrs = implode( ' ', $attrs );
+		}
+		
+		if ( is_object( $image ) ) {
+			return sprintf( '<img src="%1$s" width="%2$s" height="%3$s" %4$s>', 
+				$image->url, $image->width, $image->height, $attrs
+			);
+			
+		}
+		
+		return;
+		
+	}
+	
+	/**
+	 * Evaluate if the current given category has thumbnail
+	 * 
+	 * @param int|object $cat the category ID/object
+	 * @return bool
+	 * 
+	 */
+	function has_category_thumbnail( $cat = '' ) {
+		global $wp_taxonomies;
+		
+		if ( is_object( $cat ) )
+			$cat_id = $cat->term_id;
+		
+		if ( is_numeric( $cat ) )
+			$cat_id = (int) $cat;
+		
+		if ( '' == $cat )
+			$cat_id = get_category( get_query_var( 'cat' ) )->term_id;
+		
+		
+		$image = get_option( 'category_thumbnail_image' );
+		
+		if ( is_array( $image ) && array_key_exists( $cat_id, $image ) )
+			return true;
+		
+		return false;
 		
 	}
 	
@@ -270,20 +380,69 @@ class Category_Thumbnail {
 
 add_action( 'plugins_loaded', array( 'Category_Thumbnail', 'init' ) );
 
-
+/**
+ * Get the thumbnail object for a given category object or ID
+ * 
+ * @param int|object $cat the category ID/object
+ * @return object|bool Object or false
+ * 
+ */
 function get_category_thumbnail_object( $cat = '' ) {
 	return Category_Thumbnail::get_category_thumbnail_object( $cat );
 	
 }
 
-
-function get_category_thumbnail( $cat = '' ) {
-	return Category_Thumbnail::get_category_thumbnail( $cat );
+/**
+ * Get the thumbnail HTML string for a given category object or ID
+ * 
+ * @param int|object $cat the category ID/object
+ * @param array $args attributes to image like 'class', 'style', 'title', ...
+ * @return string the HTML
+ * 
+ */
+function get_category_thumbnail( $cat = '', $args = '' ) {
+	return Category_Thumbnail::get_category_thumbnail( $cat, $args );
 	
 }
 
-function the_category_thumbnail( $cat = '' ) {
-	echo Category_Thumbnail::get_category_thumbnail( $cat );
+/**
+ * Display the thumbnail HTML string for a given category object or ID
+ * 
+ * @param int|object $cat the category ID/object
+ * @param array $args attributes to image like 'class', 'style', 'title', ...
+ * 
+ */
+function the_category_thumbnail( $cat = '', $args = '' ) {
+	echo Category_Thumbnail::get_category_thumbnail( $cat, $args );
 	
 }
 
+/**
+ * Evaluate if the current given category has thumbnail
+ * 
+ * @param int|object $cat the category ID/object
+ * @return bool
+ * 
+ */
+function has_category_thumbnail( $cat = '' ) {
+	echo Category_Thumbnail::has_category_thumbnail( $cat );
+	
+}
+
+
+/**
+ * Register activation hook for plugin
+ * 
+ * @since 0.1
+ */
+function category_thumbnail_plugin_activation_hook() {
+	// Wordpress version control. No compatibility with older versions. ( wp_die )
+	if ( version_compare( get_bloginfo( 'version' ), '3.5', '<' ) ) {
+		wp_die( 'Category Thumbnail is not compatible with versions prior to 3.5' );
+
+	}
+
+}
+register_activation_hook( __FILE__, 'category_thumbnail_plugin_activation_hook' );
+
+endif;

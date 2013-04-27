@@ -64,7 +64,7 @@ $(document).ready(function(){
 	
 	});
 	
-	$('#submit').click(function( event ){
+	$('#addtag #submit').click(function( event ){
 		event.preventDefault();
 		
 		$('input#image-id').val('');
