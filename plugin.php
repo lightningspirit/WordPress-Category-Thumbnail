@@ -2,7 +2,7 @@
 /*
 Plugin Name: Category Thumbnail
 Plugin URI: http://www.vcarvalho.com/
-Version: 1.1
+Version: 1.2
 Text Domain: category-thumbnail
 Domain Path: /languages/
 Author: lightningspirit
