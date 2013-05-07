@@ -2,7 +2,7 @@
 /*
 Plugin Name: Category Thumbnail
 Plugin URI: http://www.vcarvalho.com/
-Version: 1.0
+Version: 1.1
 Text Domain: category-thumbnail
 Domain Path: /languages/
 Author: lightningspirit
@@ -249,7 +249,7 @@ class Category_Thumbnail {
 	function save_category( $category_id, $taxonomy_id ) {
 		
 		// Load existing option
-		$image = get_option( 'category_thumbnail_image' );
+		$image = (array) get_option( 'category_thumbnail_image' );
 			
 		if ( isset( $_REQUEST['image'] ) ) {
 			// Set active taxonomy in array
